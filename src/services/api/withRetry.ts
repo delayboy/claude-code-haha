@@ -225,7 +225,7 @@ export function isRetryableStreamError(error: unknown): boolean {
  */
 export function getMaxStreamTransientRetries(): number {
   const raw = parseInt(process.env.CLAUDE_STREAM_TRANSIENT_RETRY_MAX || '', 10)
-  return Number.isFinite(raw) && raw >= 0 ? raw : 5
+  return Number.isFinite(raw) && raw >= 0 ? raw : 10
 }
 
 export async function* withRetry<T>(

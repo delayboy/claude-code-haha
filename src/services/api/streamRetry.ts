@@ -111,7 +111,7 @@ export async function* withStreamRetry(
         error.originalError instanceof APIError &&
         error.originalError.message?.includes('"type":"overloaded_error"')
       ) {
-        const delay = Math.min(500 * Math.pow(2, i), 32000);
+        const delay = Math.min(500 * Math.pow(2, i) + 4000, 32000);
         logForDebugging(
           `Overloaded — backing off ${delay}ms before stream retry ${i + 1}`,
           { level: "warn" },
