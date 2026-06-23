@@ -357,7 +357,11 @@ async function createMainWindow() {
       sandbox: true,
     },
   })
-
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'F12') {
+      mainWindow?.webContents.openDevTools()
+    }
+  })
   installMainWindowNavigationGuards(mainWindow.webContents, { openExternal: openExternalUrl })
   installPreviewCleanupOnRendererNavigation(mainWindow.webContents, () => {
     previewService?.close()
