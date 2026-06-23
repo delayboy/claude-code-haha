@@ -1,3 +1,4 @@
+import { APIError } from "@anthropic-ai/sdk/error";
 import type {
   AssistantMessage,
   Message,
@@ -7,6 +8,7 @@ import type {
 } from "../../types/message.js";
 import { logForDebugging } from "../../utils/debug.js";
 import { errorMessage } from "../../utils/errors.js";
+import { sleep } from "../../utils/sleep.js";
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -56,7 +58,15 @@ export async function* withStreamRetry(
       yield* attempt();
       return;
     } catch (error) {
+      // DIAGNOSTIC: Log every streamRetry catch
+      console.error(
+        `[DIAG-streamRetry] attempt ${i}/${maxRetries}, ` +
+        `isRetriableStreamError=${error instanceof RetriableStreamError}, ` +
+        `errorName=${error instanceof Error ? error.name : 'unknown'}, ` +
+        `errorMsg=${error instanceof Error ? error.message.substring(0, 200) : String(error)}`,
+      );
       if (!(error instanceof RetriableStreamError)) {
+        console.error('[DIAG-streamRetry] -> NOT a RetriableStreamError, rethrowing to terminal handler');
         throw error;
       }
       if (i >= maxRetries) {
@@ -89,6 +99,25 @@ export async function* withStreamRetry(
         model:
           model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       });
+
+      // For capacity errors (overloaded / rate-limit), apply exponential
+      // backoff before the next attempt — unlike malformed tool_call blips
+      // that clear instantly, capacity issues need time to recover. The
+      // upstream withRetry does this for stream creation, but it can't
+      // help with mid-stream capacity signals that arrive inside the SSE
+      // body. Without a delay here we'd fire all retries into the same
+      // overload window and exhaust immediately.
+      if (
+        error.originalError instanceof APIError &&
+        error.originalError.message?.includes('"type":"overloaded_error"')
+      ) {
+        const delay = Math.min(500 * Math.pow(2, i), 32000);
+        logForDebugging(
+          `Overloaded — backing off ${delay}ms before stream retry ${i + 1}`,
+          { level: "warn" },
+        );
+        await sleep(delay);
+      }
     }
   }
 }

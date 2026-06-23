@@ -204,12 +204,17 @@ export function isRetryableStreamError(error: unknown): boolean {
   }
   const message = error.message
   if (!message) {
+    console.error('[DIAG-isRetryableStreamError] message is empty, error:', error);
     return false
   }
-  return (
-    message.includes('"type":"api_error"') ||
-    message.includes('"type":"overloaded_error"')
-  )
+  const hasApiError = message.includes('"type":"api_error"');
+  const hasOverloaded = message.includes('"type":"overloaded_error"');
+  console.error(
+    `[DIAG-isRetryableStreamError] message length=${message.length}, ` +
+    `has_api_error=${hasApiError}, has_overloaded=${hasOverloaded}, ` +
+    `message_preview=${message.substring(0, 200)}`,
+  );
+  return hasApiError || hasOverloaded;
 }
 
 /**
@@ -220,7 +225,7 @@ export function isRetryableStreamError(error: unknown): boolean {
  */
 export function getMaxStreamTransientRetries(): number {
   const raw = parseInt(process.env.CLAUDE_STREAM_TRANSIENT_RETRY_MAX || '', 10)
-  return Number.isFinite(raw) && raw >= 0 ? raw : 2
+  return Number.isFinite(raw) && raw >= 0 ? raw : 5
 }
 
 export async function* withRetry<T>(
@@ -307,6 +312,21 @@ export async function* withRetry<T>(
         `API error (attempt ${attempt}/${maxRetries + 1}): ${error instanceof APIError ? `${error.status} ${error.message}` : errorMessage(error)}`,
         { level: 'error' },
       )
+      // DIAGNOSTIC
+      if (error instanceof APIError) {
+        console.error(
+          `[DIAG-withRetry] attempt ${attempt}/${maxRetries + 1}, ` +
+          `status=${error.status}, ` +
+          `is529=${is529Error(error)}, ` +
+          `shouldRetry=${shouldRetry(error)}, ` +
+          `msg_preview=${error.message?.substring(0, 200)}`,
+        );
+      } else {
+        console.error(
+          `[DIAG-withRetry] attempt ${attempt}/${maxRetries + 1}, ` +
+          `NOT an APIError, errorName=${error instanceof Error ? error.name : 'unknown'}`,
+        );
+      }
 
       // Fast mode fallback: on 429/529, either wait and retry (short delays)
       // or fall back to standard speed (long delays) to avoid cache thrashing.
@@ -744,8 +764,17 @@ function handleGcpCredentialError(error: unknown): boolean {
 }
 
 function shouldRetry(error: APIError): boolean {
+  // DIAGNOSTIC: Log every shouldRetry call
+  console.error(
+    `[DIAG-shouldRetry] status=${error.status}, ` +
+    `has_overloaded_in_msg=${error.message?.includes('"type":"overloaded_error"')}, ` +
+    `has_429=${error.message?.includes('"type":"rate_limit_error"')}, ` +
+    `msg_preview=${error.message?.substring(0, 250)}`,
+  );
+
   // Never retry mock errors - they're from /mock-limits command for testing
   if (isMockRateLimitError(error)) {
+    console.error('[DIAG-shouldRetry] -> false (mock rate limit)');
     return false
   }
 

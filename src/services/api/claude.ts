@@ -2118,6 +2118,21 @@ async function* queryModel(
           }
         }
 
+        // Detect non-standard SSE error events from 3P providers (e.g. GLM)
+        // that send 'data: {"type":"error",...}' without the required
+        // 'event: error' SSE line. The Anthropic SDK only throws on
+        // sse.event === 'error', so these errors would otherwise be yielded
+        // as regular events and bypass the retry/fallback machinery entirely.
+        if (part.type === 'error') {
+          const errData = (part as Record<string, unknown>).error as Record<string, unknown> | undefined;
+          throw new APIError(
+            undefined,
+            errData ?? part,
+            undefined,
+            undefined,
+          );
+        }
+
         switch (part.type) {
           case "message_start": {
             partialMessage = part.message;
@@ -2557,6 +2572,25 @@ async function* queryModel(
       if (streamMaxDurationTimer !== null) {
         clearTimeout(streamMaxDurationTimer);
         streamMaxDurationTimer = null;
+      }
+
+      // DIAGNOSTIC: Log every streaming error to trace retry path
+      logForDebugging(
+        `[DIAG] Streaming error caught — ` +
+        `name=${streamingError instanceof Error ? streamingError.name : 'unknown'}, ` +
+        `isAPIError=${streamingError instanceof APIError}, ` +
+        `message=${errorMessage(streamingError).substring(0, 300)}, ` +
+        `newMessages.length=${newMessages.length}, ` +
+        `streamIdleAborted=${streamIdleAborted}, ` +
+        `signal.aborted=${signal.aborted}`,
+        { level: 'error' },
+      );
+      if (streamingError instanceof APIError) {
+        logForDebugging(
+          `[DIAG] APIError details — status=${streamingError.status}, ` +
+          `isRetryableStreamError=${isRetryableStreamError(streamingError)}`,
+          { level: 'error' },
+        );
       }
 
       // Instrumentation: if the watchdog had already fired and the for-await
