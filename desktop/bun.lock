@@ -15,6 +15,7 @@
         "dompurify": "^3.3.3",
         "electron-updater": "^6.8.3",
         "html2canvas": "^1.4.1",
+        "install-electron": "^1.0.0",
         "katex": "^0.16.45",
         "lucide-react": "^0.469.0",
         "marked": "^15.0.7",
@@ -965,6 +966,8 @@
     "inherits": ["inherits@2.0.4", "https://registry.npmmirror.com/inherits/-/inherits-2.0.4.tgz", {}, "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="],
 
     "inline-style-parser": ["inline-style-parser@0.2.7", "https://registry.npmmirror.com/inline-style-parser/-/inline-style-parser-0.2.7.tgz", {}, "sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA=="],
+
+    "install-electron": ["install-electron@1.0.0", "https://yd-srdart.srdcloud.cn/npm/ibocbj/ibocbj-dams-release-npm-virtual/install-electron/-/install-electron-1.0.0.tgz", {}, "sha512-wUED8v6koCkspEk1xkJpf84inqulLEsIrYkucsVqgvBIplvx7bEDKH7uHwDDwANJ+pP7XbVXwgBzUdcXG/FIdA=="],
 
     "internmap": ["internmap@1.0.1", "https://registry.npmmirror.com/internmap/-/internmap-1.0.1.tgz", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
 

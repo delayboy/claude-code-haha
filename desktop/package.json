@@ -108,6 +108,7 @@
     "dompurify": "^3.3.3",
     "electron-updater": "^6.8.3",
     "html2canvas": "^1.4.1",
+    "install-electron": "^1.0.0",
     "katex": "^0.16.45",
     "lucide-react": "^0.469.0",
     "marked": "^15.0.7",
