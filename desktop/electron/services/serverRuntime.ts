@@ -1,3 +1,5 @@
+import { createWriteStream, type WriteStream } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   createAdapterPlan,
@@ -20,6 +22,12 @@ import {
 } from './sidecarManager'
 import { readDesktopTerminalConfig, resolveDesktopTerminalShell } from './terminal'
 
+const SIDECAR_CONSOLE_ENV = 'CLAUDE_DESKTOP_CONSOLE'
+
+export function resolveSidecarLogPath(): string {
+  return path.join(os.tmpdir(), 'claude-haha-sidecar.log')
+}
+
 type ServerRuntimeOptions = {
   desktopRoot: string
   appRoot?: string
@@ -32,17 +40,22 @@ export class ElectronServerRuntime {
   private readonly appRoot: string
   private readonly h5DistDir: string
   private readonly resolveSystemProxy?: (url: string) => Promise<string>
+  private readonly sidecarLogPath: string | null = null
   private sidecarEnvPromise: Promise<NodeJS.ProcessEnv> | null = null
   private server: { url: string, child: SidecarChild } | null = null
   private adapters: SidecarChild[] = []
   private startupError: string | null = null
   private startPromise: Promise<string> | null = null
+  private sidecarLogStream: WriteStream | null = null
 
   constructor(options: ServerRuntimeOptions) {
     this.desktopRoot = options.desktopRoot
     this.appRoot = options.appRoot ?? options.desktopRoot
     this.h5DistDir = options.h5DistDir ?? path.join(options.desktopRoot, 'dist')
     this.resolveSystemProxy = options.resolveSystemProxy
+    this.sidecarLogPath = process.platform === 'win32' && process.env[SIDECAR_CONSOLE_ENV]
+      ? resolveSidecarLogPath()
+      : null
   }
 
   async startServer(): Promise<string> {
@@ -75,6 +88,10 @@ export class ElectronServerRuntime {
       killSidecar(this.server.child, sync)
       this.server = null
     }
+    if (this.sidecarLogStream) {
+      this.sidecarLogStream.end()
+      this.sidecarLogStream = null
+    }
   }
 
   private async startServerOnce(): Promise<string> {
@@ -91,6 +108,8 @@ export class ElectronServerRuntime {
       h5DistDir: this.h5DistDir,
       env,
     })
+
+    this.ensureLogStream()
 
     try {
       const child = spawnSidecar(plan)
@@ -141,23 +160,32 @@ export class ElectronServerRuntime {
   }
 
   private captureLogs(child: SidecarChild, label: string, startupLogs?: string[]) {
+    const stream = this.sidecarLogStream
     child.stdout.on('data', chunk => {
       const line = String(chunk).trimEnd()
       if (!line) return
       console.log(`[${label}] ${line}`)
+      stream?.write(`[${label}] ${line}\n`)
       if (startupLogs) pushStartupLog(startupLogs, `[stdout] ${line}`)
     })
     child.stderr.on('data', chunk => {
       const line = String(chunk).trimEnd()
       if (!line) return
       console.error(`[${label}] ${line}`)
+      stream?.write(`[${label}] ${line}\n`)
       if (startupLogs) pushStartupLog(startupLogs, `[stderr] ${line}`)
     })
     child.on('exit', (code, signal) => {
       const line = `sidecar exited (code=${code}, signal=${signal})`
       console.log(`[${label}] ${line}`)
+      stream?.write(`[${label}] ${line}\n`)
       if (startupLogs) pushStartupLog(startupLogs, `[exit] ${line}`)
     })
+  }
+
+  private ensureLogStream() {
+    if (!this.sidecarLogPath || this.sidecarLogStream) return
+    this.sidecarLogStream = createWriteStream(this.sidecarLogPath, { flags: 'w' })
   }
 
   private async resolveSidecarBaseEnv(): Promise<NodeJS.ProcessEnv> {
