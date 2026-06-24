@@ -270,7 +270,7 @@ async function handleOpenaiChat(
     passThinkingToggle: deepSeekCompatible,
     imageContentMode: shouldUseTextOnlyOpenAIChatContent(baseUrl) ? 'text_only' : 'vision',
   })
-  const url = `${baseUrl}/v1/chat/completions`
+  const url = `${baseUrl}/v4/chat/completions`
   const proxyOptions = getProxyFetchOptions({ proxyUrl })
   const startedAtMs = Date.now()
   const startedAt = new Date(startedAtMs).toISOString()

@@ -655,7 +655,7 @@ export class ProviderService {
       let transformedBody: unknown
       if (format === 'openai_chat') {
         transformedBody = anthropicToOpenaiChat(anthropicReq)
-        upstreamUrl = `${base}/v1/chat/completions`
+        upstreamUrl = `${base}/v4/chat/completions`
       } else {
         transformedBody = anthropicToOpenaiResponses(anthropicReq)
         upstreamUrl = `${base}/v1/responses`
@@ -716,7 +716,7 @@ function buildDirectTestRequest(
 
   if (format === 'openai_chat') {
     return {
-      url: `${base}/v1/chat/completions`,
+      url: `${base}/v4/chat/completions`,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: { model: modelId, max_tokens: 16, stream: false, messages: [{ role: 'user', content: prompt }] },
     }
