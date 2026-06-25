@@ -9,8 +9,38 @@ export function ThinkingBlock({ content, isActive = false }: { content: string; 
   const displayContent = useMemo(() => content.replace(/\r\n?/g, '\n').trimEnd(), [content])
   const hasDisplayContent = displayContent.trim().length > 0
 
+  // 记录用户是否在主动滚动（非底部位置）
+  const userScrollingRef = useRef(false)
+
+  // 监听用户滚动行为：区分"用户主动滚动"和"代码设置的滚动"
+  const handleScroll = () => {
+    if (!contentRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = contentRef.current
+    // 判断是否在底部（留10px容差）
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10
+
+    if (isAtBottom) {
+      // 滚动到底部 → 恢复自动跟随
+      userScrollingRef.current = false
+    } else {
+      // 不在底部 → 认为用户在查看历史内容，暂停自动滚动
+      userScrollingRef.current = true
+    }
+  }
+
+  // 展开时重置滚动状态并添加监听
   useEffect(() => {
-    if (expanded && isActive && contentRef.current) {
+    const element = contentRef.current
+    if (expanded && element) {
+      userScrollingRef.current = false
+      element.addEventListener('scroll', handleScroll, { passive: true })
+      return () => element.removeEventListener('scroll', handleScroll)
+    }
+  }, [expanded])
+
+  // 内容更新时：仅当用户未在主动滚动时才自动滚到底部
+  useEffect(() => {
+    if (expanded && isActive && contentRef.current && !userScrollingRef.current) {
       contentRef.current.scrollTop = contentRef.current.scrollHeight
     }
   }, [displayContent, expanded, isActive])
